@@ -15,7 +15,13 @@ export class PostDeleteTool implements AgentToolInterface {
   run() {
     return createTool({
       id: 'postDelete',
-      description: `This tool deletes a scheduled or draft post. This action cannot be undone. Use the group ID from postsList or postGet to delete an entire post group (including all comments/thread items).`,
+      description: `This tool deletes a post from Postiz. This action cannot be undone.
+
+IMPORTANT:
+- For scheduled/draft posts: Deletes the post and cancels the scheduled publishing.
+- For published posts: Only removes the post from Postiz - it will NOT be deleted from the social network. The post will remain live on the platform.
+
+Use the group ID from postsList or postGet to delete an entire post group (including all comments/thread items).`,
       inputSchema: z.object({
         groupId: z
           .string()
@@ -25,6 +31,7 @@ export class PostDeleteTool implements AgentToolInterface {
         output: z.object({
           success: z.boolean(),
           message: z.string(),
+          wasPublished: z.boolean().optional().describe('True if the deleted post was already published'),
         }).or(z.object({
           error: z.string(),
         })),
@@ -49,12 +56,26 @@ export class PostDeleteTool implements AgentToolInterface {
             };
           }
 
+          // Get post state before deleting
+          const postData = await this._postsService.getPostsByGroup(
+            organizationId,
+            context.groupId
+          );
+
+          const wasPublished = postData?.posts?.[0]?.state === 'PUBLISHED';
+
           await this._postsService.deletePost(organizationId, context.groupId);
+
+          let message = `Post group "${context.groupId}" has been deleted from Postiz.`;
+          if (wasPublished) {
+            message += ' Note: The post was already published and remains live on the social network.';
+          }
 
           return {
             output: {
               success: true,
-              message: `Post group "${context.groupId}" has been deleted successfully.`,
+              message,
+              wasPublished,
             },
           };
         } catch (error: any) {

@@ -27,6 +27,7 @@ export class PostGetTool implements AgentToolInterface {
           group: z.string().describe('Group ID for the post thread'),
           publishDate: z.string().describe('Scheduled publish date'),
           state: z.string().describe('Post state: QUEUE, DRAFT, PUBLISHED, ERROR'),
+          editable: z.boolean().describe('Whether this post can be edited. False for PUBLISHED/ERROR posts.'),
           integration: z.object({
             id: z.string(),
             name: z.string(),
@@ -82,12 +83,14 @@ export class PostGetTool implements AgentToolInterface {
           }
 
           const firstPost = postData.posts[0];
+          const isEditable = firstPost.state === 'QUEUE' || firstPost.state === 'DRAFT';
 
           return {
             output: {
               group: postData.group,
               publishDate: dayjs(firstPost.publishDate).toISOString(),
               state: firstPost.state,
+              editable: isEditable,
               integration: {
                 id: postData.integration,
                 name: firstPost.integration?.name || '',
