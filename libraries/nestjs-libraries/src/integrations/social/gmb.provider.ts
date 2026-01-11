@@ -16,9 +16,14 @@ import { GmbSettingsDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-s
 
 const clientAndGmb = () => {
   const client = new google.auth.OAuth2({
-    clientId: process.env.GOOGLE_GMB_CLIENT_ID || process.env.YOUTUBE_CLIENT_ID,
+    clientId:
+      process.env.GOOGLE_GMB_CLIENT_ID ||
+      process.env.GOOGLE_CLIENT_ID ||
+      process.env.YOUTUBE_CLIENT_ID,
     clientSecret:
-      process.env.GOOGLE_GMB_CLIENT_SECRET || process.env.YOUTUBE_CLIENT_SECRET,
+      process.env.GOOGLE_GMB_CLIENT_SECRET ||
+      process.env.GOOGLE_CLIENT_SECRET ||
+      process.env.YOUTUBE_CLIENT_SECRET,
     redirectUri: `${process.env.FRONTEND_URL}/integrations/social/gmb`,
   });
 

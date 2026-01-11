@@ -59,3 +59,56 @@ const useCommunity = () => {
 
 - Linting of the project can run only from the root.
 - Use only pnpm.
+
+---
+
+## Serwer MCP (Model Context Protocol)
+
+Serwer MCP pozwala agentom AI na zarządzanie postami przez API.
+
+**Lokalizacja:** `libraries/nestjs-libraries/src/chat/`
+
+**Dokumentacja:** `libraries/nestjs-libraries/src/chat/MCP_TOOLS.md`
+
+### Dostępne narzędzia MCP:
+
+| Narzędzie | Opis | Plik |
+|-----------|------|------|
+| `integrationList` | Lista kanałów | `integration.list.tool.ts` |
+| `integrationSchema` | Reguły platformy | `integration.validation.tool.ts` |
+| `integrationTrigger` | Dynamiczne dane | `integration.trigger.tool.ts` |
+| `schedulePostTool` | Tworzenie postów | `integration.schedule.post.ts` |
+| `postsList` | Lista postów | `posts.list.tool.ts` |
+| `postGet` | Szczegóły posta | `post.get.tool.ts` |
+| `postUpdate` | Zmiana daty | `post.update.tool.ts` |
+| `postEdit` | Edycja treści | `post.edit.tool.ts` |
+| `postDelete` | Usuwanie | `post.delete.tool.ts` |
+| `generateImageTool` | Generowanie obrazów | `generate.image.tool.ts` |
+| `generateVideoTool` | Generowanie wideo | `generate.video.tool.ts` |
+
+### Dodawanie nowego narzędzia MCP:
+
+1. Utwórz plik `nazwatools.tool.ts` w `libraries/nestjs-libraries/src/chat/tools/`
+2. Zaimplementuj `AgentToolInterface`
+3. Użyj `@Injectable()` i `createTool()` z `@mastra/core/tools`
+4. Dodaj do `tool.list.ts`
+5. Narzędzie zostanie automatycznie zarejestrowane (spread w `chat.module.ts`)
+
+## Baza danych
+
+**ORM:** Prisma
+
+**Schema:** `libraries/nestjs-libraries/src/database/prisma/schema.prisma`
+
+**Główne modele:**
+- `Integration` - kanały/integracje z platformami
+- `Post` - posty (stan: QUEUE, DRAFT, PUBLISHED, ERROR)
+- `Organization` - organizacje/workspace
+- `User` - użytkownicy
+
+## Tips dla Claude
+
+1. Przy modyfikacji narzędzi MCP - pamiętaj o aktualizacji `MCP_TOOLS.md`
+2. Providery platform są w `integrations/social/` - każdy plik to jedna platforma
+3. Serwisy bazy są w `database/prisma/` - `*.service.ts` i `*.repository.ts`
+4. Przy dodawaniu pól do response - aktualizuj schemat Zod w narzędziu

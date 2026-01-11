@@ -40,7 +40,32 @@
 - `jest.config.ts` — Test configuration
 - `pnpm-workspace.yaml` — Workspace package management
 - `README.md` — General project overview
+- `CLAUDE.md` — Claude Code specific instructions and project knowledge
 - `libraries/nestjs-libraries/src/database/prisma/schema.prisma` — Database schema
+- `libraries/nestjs-libraries/src/chat/` — MCP server and AI tools
+- `libraries/nestjs-libraries/src/chat/MCP_TOOLS.md` — MCP tools documentation
+
+## MCP Server (AI Agent Integration)
+The MCP (Model Context Protocol) server allows AI agents like Claude to manage social media posts.
+
+**Location:** `libraries/nestjs-libraries/src/chat/`
+
+**Available tools:**
+- `integrationList` — List available channels
+- `integrationSchema` — Get platform rules and settings
+- `schedulePostTool` — Create new posts
+- `postsList` — List scheduled/published posts
+- `postGet` — Get post details
+- `postEdit` — Edit post content and images
+- `postUpdate` — Reschedule posts
+- `postDelete` — Delete posts
+- `generateImageTool` — Generate AI images
+
+**Adding new MCP tools:**
+1. Create `toolname.tool.ts` in `libraries/nestjs-libraries/src/chat/tools/`
+2. Implement `AgentToolInterface` with `@Injectable()` decorator
+3. Use `createTool()` from `@mastra/core/tools`
+4. Add to `tool.list.ts` — auto-registered via DI
 
 ## Documentation
 - Main docs: https://docs.postiz.com/

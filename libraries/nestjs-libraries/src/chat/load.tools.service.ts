@@ -58,6 +58,11 @@ export class LoadToolsService {
         - Generate text for posts
         - Show global analytics about socials
         - List integrations (channels)
+        - List scheduled, draft, and published posts (use postsList tool)
+        - View post details for editing (use postGet tool)
+        - Reschedule posts to new dates (use postUpdate tool)
+        - Edit post content, images, and settings (use postEdit tool)
+        - Delete scheduled or draft posts (use postDelete tool)
       
       - We schedule posts to different integration like facebook, instagram, etc. but to the user we don't say integrations we say channels as integration is the technical name
       - When scheduling a post, you must follow the social media rules and best practices.
