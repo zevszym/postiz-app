@@ -16,7 +16,11 @@ export class PostUpdateTool implements AgentToolInterface {
   run() {
     return createTool({
       id: 'postUpdate',
-      description: `This tool allows you to reschedule a post to a different date/time. Use postGet first to retrieve the current post details, then use this tool to update the schedule. For content changes, delete the old post and create a new one with schedulePostTool.`,
+      description: `This tool allows you to reschedule a scheduled (QUEUE) or draft post to a different date/time.
+
+IMPORTANT: Cannot reschedule posts that are already PUBLISHED or in ERROR state.
+
+Use postGet first to retrieve the current post details, then use this tool to update the schedule. For content changes, use postEdit instead.`,
       inputSchema: z.object({
         postId: z
           .string()
@@ -72,6 +76,30 @@ export class PostUpdateTool implements AgentToolInterface {
           if (newDate.isBefore(dayjs())) {
             return {
               output: { error: 'New date must be in the future' },
+            };
+          }
+
+          // Get the post to check its state
+          const postData = await this._postsService.getPost(
+            organizationId,
+            context.postId
+          );
+
+          if (!postData || !postData.posts || postData.posts.length === 0) {
+            return {
+              output: { error: 'Post not found' },
+            };
+          }
+
+          const postState = postData.posts[0].state;
+          if (postState === 'PUBLISHED') {
+            return {
+              output: { error: 'Cannot reschedule a published post. The post has already been published.' },
+            };
+          }
+          if (postState === 'ERROR') {
+            return {
+              output: { error: 'Cannot reschedule a post in error state. Please delete it and create a new one.' },
             };
           }
 

@@ -130,6 +130,19 @@ For thread/comment structure:
             };
           }
 
+          // Check if post is editable (only QUEUE and DRAFT can be edited)
+          const postState = originalPost.posts[0].state;
+          if (postState === 'PUBLISHED') {
+            return {
+              output: { error: 'Cannot edit a published post. The post has already been published to the social network.' },
+            };
+          }
+          if (postState === 'ERROR') {
+            return {
+              output: { error: 'Cannot edit a post in error state. Please delete it and create a new one.' },
+            };
+          }
+
           // Get integration details
           const integration = await this._integrationService.getIntegrationById(
             organizationId,
@@ -143,9 +156,30 @@ For thread/comment structure:
           }
 
           // Determine the date
-          const publishDate = context.date
-            ? dayjs(context.date).format('YYYY-MM-DDTHH:mm:ss')
-            : dayjs(originalPost.posts[0].publishDate).format('YYYY-MM-DDTHH:mm:ss');
+          let publishDate: string;
+          if (context.date) {
+            const newDate = dayjs(context.date);
+            if (!newDate.isValid()) {
+              return {
+                output: { error: 'Invalid date format. Please use ISO format (e.g., 2024-12-25T14:00:00Z)' },
+              };
+            }
+            if (newDate.isBefore(dayjs())) {
+              return {
+                output: { error: 'Publish date must be in the future.' },
+              };
+            }
+            publishDate = newDate.format('YYYY-MM-DDTHH:mm:ss');
+          } else {
+            // Keep original date but validate it's still in the future
+            const originalDate = dayjs(originalPost.posts[0].publishDate);
+            if (originalDate.isBefore(dayjs())) {
+              return {
+                output: { error: 'Original publish date is in the past. Please provide a new future date.' },
+              };
+            }
+            publishDate = originalDate.format('YYYY-MM-DDTHH:mm:ss');
+          }
 
           // Build settings
           const settings = (context.settings || []).reduce(
