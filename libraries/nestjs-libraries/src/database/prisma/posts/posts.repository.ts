@@ -224,6 +224,20 @@ export class PostsRepository {
     }, [] as any[]);
   }
 
+  async getFirstPostByGroup(orgId: string, group: string) {
+    return this._post.model.post.findFirst({
+      where: {
+        organizationId: orgId,
+        group,
+        parentPostId: null,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    });
+  }
+
   async deletePost(orgId: string, group: string) {
     await this._post.model.post.updateMany({
       where: {

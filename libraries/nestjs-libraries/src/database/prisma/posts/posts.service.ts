@@ -618,6 +618,14 @@ export class PostsService {
     }
   }
 
+  async getPostsByGroup(orgId: string, group: string) {
+    const firstPost = await this._postRepository.getFirstPostByGroup(orgId, group);
+    if (!firstPost) {
+      return null;
+    }
+    return this.getPost(orgId, firstPost.id);
+  }
+
   async deletePost(orgId: string, group: string) {
     const post = await this._postRepository.deletePost(orgId, group);
     if (post?.id) {
