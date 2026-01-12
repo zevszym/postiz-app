@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npx nx:*)",
+      "Bash(pnpm run build:backend:*)",
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(COREPACK_ENABLE_DOWNLOAD_PROMPT=0 npx typescript:*)",
+      "Bash(pnpm exec tsc:*)",
+      "Bash(node --check:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(docker buildx:*)",
+      "Bash(docker login:*)",
+      "Bash(git describe:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(docker manifest inspect:*)",
+      "Bash(git push:*)",
+      "Bash(pkill:*)",
+      "Bash(chmod:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git cherry-pick:*)",
+      "Bash(git grep:*)"
+    ]
+  }
+}
