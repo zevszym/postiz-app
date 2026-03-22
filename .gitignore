@@ -56,5 +56,8 @@ Thumbs.db
 
 # ignore Secrets folder
 .secrets/
+
+# Custom docker-compose with secrets
+craftbe-docker-compose.yaml
 libraries/plugins/src/plugins.ts
 i18n.cache
