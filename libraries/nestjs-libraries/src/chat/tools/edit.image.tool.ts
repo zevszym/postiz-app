@@ -53,16 +53,11 @@ export class EditImageTool implements AgentToolInterface {
           .optional()
           .describe('Gemini model. Default: Nano Banana Pro.'),
         thinkingLevel: z
-          .enum(['None', 'Low', 'Medium', 'High'])
+          .enum(['Minimal', 'High'])
           .optional()
-          .describe('Thinking depth. Default: "Medium" for edits.'),
+          .describe('Thinking depth for Gemini 3.x models. If not set, uses API default.'),
       }),
-      outputSchema: z.object({
-        id: z.string(),
-        path: z.string(),
-        thoughts: z.string().optional(),
-        textResponse: z.string().optional(),
-      }),
+      outputSchema: z.any(),
       execute: async (args, options) => {
         const { context, runtimeContext } = args;
         checkAuth(args, options);

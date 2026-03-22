@@ -74,22 +74,18 @@ export class OpenaiService {
       tools = [{ googleSearch: {} }];
     }
 
-    // Only include thinkingConfig for Gemini 3.x models (not 2.5 Nano Banana)
-    const supportsThinking = modelId.startsWith('gemini-3');
+    // Only include thinkingConfig when explicitly requested — let API use defaults otherwise
+    const thinkingConfig =
+      options?.thinkingLevel && modelId.startsWith('gemini-3')
+        ? { thinkingConfig: { thinkingLevel: options.thinkingLevel as any } }
+        : {};
 
     const response = await ai.models.generateContent({
       model: modelId,
       contents,
       config: {
         responseModalities: ['TEXT', 'IMAGE'],
-        ...(supportsThinking
-          ? {
-              thinkingConfig: {
-                thinkingLevel: (options?.thinkingLevel as any) || 'High',
-                includeThoughts: true,
-              },
-            }
-          : {}),
+        ...thinkingConfig,
         imageConfig: {
           aspectRatio: options?.aspectRatio || '1:1',
           imageSize: options?.imageSize || process.env.GEMINI_IMAGE_SIZE || '1K',
@@ -138,7 +134,7 @@ export class OpenaiService {
   ): Promise<{ imageBase64: string; thoughts?: string; textResponse?: string }> {
     return this.generateImageGemini(instruction, {
       ...options,
-      thinkingLevel: options?.thinkingLevel || 'Medium',
+      thinkingLevel: options?.thinkingLevel,
       referenceImages: [{ mimeType: sourceMimeType, data: sourceImageBase64 }],
     });
   }

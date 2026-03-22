@@ -46,12 +46,7 @@ export class GeminiSearchImageTool implements AgentToolInterface {
           .optional()
           .describe('Additional reference images from media library for style/product consistency'),
       }),
-      outputSchema: z.object({
-        id: z.string(),
-        path: z.string(),
-        thoughts: z.string().optional(),
-        textResponse: z.string().optional(),
-      }),
+      outputSchema: z.any(),
       execute: async (args, options) => {
         const { context, runtimeContext } = args;
         checkAuth(args, options);

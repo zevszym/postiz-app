@@ -46,9 +46,9 @@ export class GenerateImageTool implements AgentToolInterface {
           .optional()
           .describe('Gemini model. "gemini-2.5-flash-image" = Nano Banana (fast/cheap), "gemini-3.1-flash-image-preview" = Nano Banana 2 (balanced, supports image search), "gemini-3-pro-image-preview" = Nano Banana Pro (highest quality). Default from env or Pro.'),
         thinkingLevel: z
-          .enum(['None', 'Low', 'Medium', 'High'])
+          .enum(['Minimal', 'High'])
           .optional()
-          .describe('Thinking depth for Gemini. Higher = better quality, slower. Default: "High".'),
+          .describe('Thinking depth for Gemini 3.x models. "High" = best quality (slower), "Minimal" = faster. If not set, uses API default.'),
         useGoogleSearch: z
           .boolean()
           .optional()
@@ -63,12 +63,7 @@ export class GenerateImageTool implements AgentToolInterface {
           .optional()
           .describe('Media library IDs of reference images (up to 14). Model uses these for visual consistency — e.g., same product in different settings.'),
       }),
-      outputSchema: z.object({
-        id: z.string(),
-        path: z.string(),
-        thoughts: z.string().optional(),
-        textResponse: z.string().optional(),
-      }),
+      outputSchema: z.any(),
       execute: async (args, options) => {
         const { context, runtimeContext } = args;
         checkAuth(args, options);
