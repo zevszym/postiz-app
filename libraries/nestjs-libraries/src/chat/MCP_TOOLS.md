@@ -53,6 +53,7 @@ Tworzy i planuje nowe posty.
 - `socialPost` - tablica postów:
   - `integrationId` - ID integracji
   - `isPremium` - czy premium (dla X)
+  - `group` - (opcjonalny) identyfikator grupy multi-channel
   - `date` - data publikacji (UTC, ISO format)
   - `shortLink` - czy skrócić linki
   - `type` - draft/schedule/now
@@ -60,6 +61,9 @@ Tworzy i planuje nowe posty.
     - `content` - HTML: `<p>tekst</p>`
     - `attachments` - URLe obrazów
   - `settings` - ustawienia platformy
+
+**Multi-channel posting:**
+Aby opublikować ten sam post na kilku platformach jednocześnie (np. Facebook + Instagram), podaj ten sam `group` dla każdego elementu `socialPost`. Posty z tym samym `group` zostaną powiązane w systemie i będą widoczne jako jeden wpis multi-channel.
 
 **Struktura wątków:**
 - LinkedIn/Facebook: pierwszy element = post, kolejne = komentarze
@@ -203,6 +207,37 @@ schedulePostTool({
 })
 ```
 
+### Multi-channel: ten sam post na Facebook i Instagram
+
+```javascript
+schedulePostTool({
+  socialPost: [
+    {
+      integrationId: "facebook-123",
+      isPremium: false,
+      group: "my-group-1",
+      date: "2024-12-25T14:00:00Z",
+      type: "schedule",
+      postsAndComments: [
+        { content: "<p>Post na obie platformy!</p>", attachments: [] }
+      ],
+      settings: []
+    },
+    {
+      integrationId: "instagram-456",
+      isPremium: false,
+      group: "my-group-1",
+      date: "2024-12-25T14:00:00Z",
+      type: "schedule",
+      postsAndComments: [
+        { content: "<p>Post na obie platformy!</p>", attachments: [] }
+      ],
+      settings: []
+    }
+  ]
+})
+```
+
 ### Edycja istniejącego posta
 
 ```javascript
@@ -255,6 +290,9 @@ libraries/nestjs-libraries/src/chat/
 ---
 
 ## Changelog
+
+### 2026-03-22
+- Dodano obsługę multi-channel posting w `schedulePostTool` — nowy opcjonalny parametr `group` pozwala powiązać posty na różne platformy
 
 ### 2024-01-11
 - Naprawiono `integrationList` - dodano obsługę błędów i pola `available`, `disabled`, `refreshNeeded`

@@ -43,6 +43,12 @@ If the user want to post 20 posts for facebook each in individual days without c
 - socialPost array length will be 20
 - postsAndComments array length will be one
 
+If the user want to post the SAME post to Facebook AND Instagram at the same time (multi-channel):
+- socialPost array length will be two (one per platform)
+- both items must have the SAME "group" value (any string, e.g. "group1")
+- both items must have the same date, type, and shortLink
+- Posts with the same group are linked together in the system
+
 If the tools return errors, you would need to rerun it with the right parameters, don't ask again, just run it
 `,
       inputSchema: z.object({
@@ -56,6 +62,12 @@ If the tools return errors, you would need to rerun it with the right parameters
                 .boolean()
                 .describe(
                   "If the integration is X, return if it's premium or not"
+                ),
+              group: z
+                .string()
+                .optional()
+                .describe(
+                  'Optional group identifier. Posts with the same group value will be linked together as a multi-channel post (e.g. same post to Facebook AND Instagram). All posts in the same group must share the same date, type, and shortLink.'
                 ),
               date: z.string().describe('The date of the post in UTC time'),
               shortLink: z
@@ -180,42 +192,62 @@ If the tools return errors, you would need to rerun it with the right parameters
           }
         }
 
-        for (const post of context.socialPost) {
-          const integration = integrations[post.integrationId];
+        // Group posts by their group field for multi-channel support
+        const groupedPosts = new Map<
+          string,
+          typeof context.socialPost
+        >();
 
-          if (!integration) {
-            throw new Error('Integration not found');
+        for (const post of context.socialPost) {
+          const groupKey = post.group || makeId(10); // ungrouped posts get unique keys
+          if (!groupedPosts.has(groupKey)) {
+            groupedPosts.set(groupKey, []);
           }
+          groupedPosts.get(groupKey)!.push(post);
+        }
+
+        for (const [groupKey, posts] of groupedPosts) {
+          const sharedGroupId = makeId(10);
+          // Use date/type/shortLink from first post in group
+          const firstPost = posts[0];
+
+          const postsPayload = posts.map((post) => {
+            const integration = integrations[post.integrationId];
+            if (!integration) {
+              throw new Error(
+                `Integration not found: ${post.integrationId}`
+              );
+            }
+            return {
+              integration,
+              group: sharedGroupId,
+              settings: post.settings.reduce(
+                (acc, s) => ({
+                  ...acc,
+                  [s.key]: s.value,
+                }),
+                {
+                  __type: integration.providerIdentifier,
+                } as AllProvidersSettings
+              ),
+              value: post.postsAndComments.map((p) => ({
+                content: p.content,
+                id: makeId(10),
+                delay: 0,
+                image: p.attachments.map((p) => ({
+                  id: makeId(10),
+                  path: p,
+                })),
+              })),
+            };
+          });
 
           const output = await this._postsService.createPost(organizationId, {
-            date: post.date,
-            type: post.type as 'draft' | 'schedule' | 'now',
-            shortLink: post.shortLink,
+            date: firstPost.date,
+            type: firstPost.type as 'draft' | 'schedule' | 'now',
+            shortLink: firstPost.shortLink,
             tags: [],
-            posts: [
-              {
-                integration,
-                group: makeId(10),
-                settings: post.settings.reduce(
-                  (acc, s) => ({
-                    ...acc,
-                    [s.key]: s.value,
-                  }),
-                  {
-                    __type: integration.providerIdentifier,
-                  } as AllProvidersSettings
-                ),
-                value: post.postsAndComments.map((p) => ({
-                  content: p.content,
-                  id: makeId(10),
-                  delay: 0,
-                  image: p.attachments.map((p) => ({
-                    id: makeId(10),
-                    path: p,
-                  })),
-                })),
-              },
-            ],
+            posts: postsPayload,
           });
           finalOutput.push(...output);
         }

@@ -8,8 +8,9 @@ VERSION="${VERSION:-$(git rev-parse --short HEAD)}"
 
 echo "Building ${REGISTRY}/${IMAGE_NAME}:${VERSION}"
 
-# Build the image
+# Build the image for amd64
 docker build \
+  --platform linux/amd64 \
   -f Dockerfile.dev \
   -t ${REGISTRY}/${IMAGE_NAME}:${VERSION} \
   -t ${REGISTRY}/${IMAGE_NAME}:latest \
