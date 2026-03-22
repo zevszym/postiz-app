@@ -96,11 +96,16 @@ export class EditImageTool implements AgentToolInterface {
           }
         );
 
+        if (!image) {
+          throw new Error('Image editing returned no data');
+        }
+
         const file = await this.storage.uploadSimple(
           'data:image/png;base64,' + image
         );
 
-        return this._mediaService.saveFile(org.id, file.split('/').pop(), file);
+        const saved = await this._mediaService.saveFile(org.id, file.split('/').pop(), file);
+        return { id: saved.id, path: saved.path };
       },
     });
   }
