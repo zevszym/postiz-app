@@ -5,6 +5,8 @@ import { GenerateVideoOptionsTool } from '@gitroom/nestjs-libraries/chat/tools/g
 import { VideoFunctionTool } from '@gitroom/nestjs-libraries/chat/tools/video.function.tool';
 import { GenerateVideoTool } from '@gitroom/nestjs-libraries/chat/tools/generate.video.tool';
 import { GenerateImageTool } from '@gitroom/nestjs-libraries/chat/tools/generate.image.tool';
+import { EditImageTool } from '@gitroom/nestjs-libraries/chat/tools/edit.image.tool';
+import { GeminiSearchImageTool } from '@gitroom/nestjs-libraries/chat/tools/gemini.search.image.tool';
 import { IntegrationListTool } from '@gitroom/nestjs-libraries/chat/tools/integration.list.tool';
 import { PostsListTool } from '@gitroom/nestjs-libraries/chat/tools/posts.list.tool';
 import { PostGetTool } from '@gitroom/nestjs-libraries/chat/tools/post.get.tool';
@@ -26,4 +28,6 @@ export const toolList = [
   VideoFunctionTool,
   GenerateVideoTool,
   GenerateImageTool,
+  EditImageTool,
+  GeminiSearchImageTool,
 ];

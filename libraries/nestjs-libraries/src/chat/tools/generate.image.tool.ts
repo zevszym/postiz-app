@@ -5,19 +5,7 @@ import { Injectable } from '@nestjs/common';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
-
-const PLATFORM_ASPECT_RATIOS: Record<string, string> = {
-  instagram: '1:1',
-  facebook: '1:1',
-  x: '16:9',
-  twitter: '16:9',
-  linkedin: '1:1',
-  pinterest: '2:3',
-  tiktok: '9:16',
-  youtube: '16:9',
-  threads: '1:1',
-  bluesky: '16:9',
-};
+import { resolveAspectRatio } from './platform.constants';
 
 @Injectable()
 export class GenerateImageTool implements AgentToolInterface {
@@ -29,38 +17,57 @@ export class GenerateImageTool implements AgentToolInterface {
   run() {
     return createTool({
       id: 'generateImageTool',
-      description: `Generate image to use in a post,
-                    in case the user specified a platform that requires attachment and attachment was not provided,
-                    ask if they want to generate a picture of a video.
-                    Supports DALL-E 3 (default) and Gemini Nano Banana Pro (set provider to "gemini").
-                    The provider can also be configured globally via IMAGE_GENERATION_PROVIDER env var.
-                    When using Gemini, aspect ratio is automatically set based on the target platform.
-                    You can also override it with the aspectRatio parameter.
+      description: `Generate an AI image for any purpose — social media posts, knowledge base, reference material, product research, analysis, or standalone use.
+                    The image is saved to the media library and can be attached to a post later, or kept as standalone.
+                    Supports DALL-E 3 and Gemini (Nano Banana, Nano Banana 2, Nano Banana Pro).
+                    Gemini features: thinking mode for best quality, Google Search grounding for real products/brands, reference images for consistency.
+                    When any Gemini-specific option is used, provider is automatically set to "gemini".
       `,
       inputSchema: z.object({
-        prompt: z.string(),
+        prompt: z.string().describe('Description of the image to generate'),
         provider: z
           .enum(['dalle', 'gemini'])
           .optional()
-          .describe(
-            'Image generation provider. "dalle" for DALL-E 3, "gemini" for Gemini Nano Banana Pro. If not specified, uses IMAGE_GENERATION_PROVIDER env var or defaults to "dalle".'
-          ),
+          .describe('Provider. Default: env IMAGE_GENERATION_PROVIDER or "dalle".'),
         platform: z
           .string()
           .optional()
-          .describe(
-            'Target platform identifier (e.g. "instagram", "facebook", "x", "linkedin", "pinterest", "tiktok", "youtube", "threads", "bluesky"). Used to auto-select the best aspect ratio for the channel.'
-          ),
+          .describe('Target platform for auto aspect ratio (instagram, facebook, x, linkedin, pinterest, tiktok, youtube, threads, bluesky).'),
         aspectRatio: z
           .enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'])
           .optional()
-          .describe(
-            'Override aspect ratio. If not set, derived from platform. Defaults to 1:1.'
-          ),
+          .describe('Override aspect ratio. If not set, derived from platform. Defaults to 1:1.'),
+        model: z
+          .enum([
+            'gemini-2.5-flash-image',
+            'gemini-3.1-flash-image-preview',
+            'gemini-3-pro-image-preview',
+          ])
+          .optional()
+          .describe('Gemini model. "gemini-2.5-flash-image" = Nano Banana (fast/cheap), "gemini-3.1-flash-image-preview" = Nano Banana 2 (balanced, supports image search), "gemini-3-pro-image-preview" = Nano Banana Pro (highest quality). Default from env or Pro.'),
+        thinkingLevel: z
+          .enum(['None', 'Low', 'Medium', 'High'])
+          .optional()
+          .describe('Thinking depth for Gemini. Higher = better quality, slower. Default: "High".'),
+        useGoogleSearch: z
+          .boolean()
+          .optional()
+          .describe('Enable Google Search grounding. Model searches the web for real product info, trends, etc. before generating. Great for e-commerce. Default: false.'),
+        useImageSearch: z
+          .boolean()
+          .optional()
+          .describe('Enable Google Image Search grounding (auto-switches to Nano Banana 2 model). Model uses Google Image Search results as visual context. Default: false.'),
+        referenceImageIds: z
+          .array(z.string())
+          .max(14)
+          .optional()
+          .describe('Media library IDs of reference images (up to 14). Model uses these for visual consistency — e.g., same product in different settings.'),
       }),
       outputSchema: z.object({
         id: z.string(),
         path: z.string(),
+        thoughts: z.string().optional(),
+        textResponse: z.string().optional(),
       }),
       execute: async (args, options) => {
         const { context, runtimeContext } = args;
@@ -68,18 +75,45 @@ export class GenerateImageTool implements AgentToolInterface {
         // @ts-ignore
         const org = JSON.parse(runtimeContext.get('organization') as string);
 
-        const aspectRatio =
-          context.aspectRatio ||
-          (context.platform
-            ? PLATFORM_ASPECT_RATIOS[context.platform.toLowerCase()]
-            : undefined);
+        const aspectRatio = resolveAspectRatio(context.aspectRatio, context.platform);
+
+        // Auto-force gemini provider when Gemini-specific options are used
+        const hasGeminiOptions = context.model || context.thinkingLevel ||
+          context.useGoogleSearch || context.useImageSearch || context.referenceImageIds?.length;
+        const provider = hasGeminiOptions ? 'gemini' : context.provider;
+
+        // Auto-switch model for image search
+        let model = context.model;
+        if (context.useImageSearch && model !== 'gemini-3.1-flash-image-preview') {
+          model = 'gemini-3.1-flash-image-preview';
+        }
+
+        // Resolve reference image URLs from media library IDs
+        let referenceImageUrls: string[] | undefined;
+        if (context.referenceImageIds?.length) {
+          const mediaRecords = await Promise.all(
+            context.referenceImageIds.map((id: string) =>
+              this._mediaService.getMediaById(id)
+            )
+          );
+          referenceImageUrls = mediaRecords
+            .filter(Boolean)
+            .map((m: any) => m.path);
+        }
 
         const image = await this._mediaService.generateImage(
           context.prompt,
           org,
           false,
-          context.provider,
-          aspectRatio
+          provider,
+          aspectRatio,
+          {
+            model,
+            thinkingLevel: context.thinkingLevel,
+            useGoogleSearch: context.useGoogleSearch,
+            useImageSearch: context.useImageSearch,
+            referenceImageUrls,
+          }
         );
 
         const file = await this.storage.uploadSimple(

@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 import { shuffle } from 'lodash';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'sk-proj-',
@@ -34,42 +34,116 @@ export class OpenaiService {
 
   async generateImageGemini(
     prompt: string,
-    aspectRatio?: string,
-    imageSize?: string
-  ): Promise<string> {
+    options?: {
+      aspectRatio?: string;
+      imageSize?: string;
+      model?: string;
+      thinkingLevel?: string;
+      useGoogleSearch?: boolean;
+      useImageSearch?: boolean;
+      referenceImages?: Array<{ mimeType: string; data: string }>;
+    }
+  ): Promise<{ imageBase64: string; thoughts?: string; textResponse?: string }> {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY environment variable is not set');
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: process.env.GEMINI_IMAGE_MODEL || 'gemini-3-pro-image-preview',
-    });
+    const ai = new GoogleGenAI({ apiKey });
+    const modelId = options?.model || process.env.GEMINI_IMAGE_MODEL || 'gemini-3-pro-image-preview';
 
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        // @ts-ignore - responseModalities and imageConfig are supported for image generation
-        responseModalities: ['IMAGE', 'TEXT'],
-        imageConfig: {
-          aspectRatio: aspectRatio || '1:1',
-          imageSize: imageSize || process.env.GEMINI_IMAGE_SIZE || '1K',
+    // Build contents: text prompt + optional reference images
+    const contents: any[] = [prompt];
+    if (options?.referenceImages?.length) {
+      for (const ref of options.referenceImages) {
+        contents.push({
+          inlineData: { mimeType: ref.mimeType, data: ref.data },
+        });
+      }
+    }
+
+    // Build tools config for search grounding
+    let tools: any[] | undefined;
+    if (options?.useImageSearch) {
+      tools = [{
+        googleSearch: {
+          searchTypes: { webSearch: {}, imageSearch: {} },
         },
+      }];
+    } else if (options?.useGoogleSearch) {
+      tools = [{ googleSearch: {} }];
+    }
+
+    const response = await ai.models.generateContent({
+      model: modelId,
+      contents,
+      config: {
+        responseModalities: ['TEXT', 'IMAGE'],
+        thinkingConfig: {
+          thinkingLevel: (options?.thinkingLevel as any) || 'High',
+          includeThoughts: true,
+        },
+        imageConfig: {
+          aspectRatio: options?.aspectRatio || '1:1',
+          imageSize: options?.imageSize || process.env.GEMINI_IMAGE_SIZE || '1K',
+        },
+        ...(tools ? { tools } : {}),
       },
     });
 
-    const parts = result.response.candidates?.[0]?.content?.parts;
-    if (!parts) {
+    // Parse response parts
+    const parts = response.candidates?.[0]?.content?.parts;
+    if (!parts?.length) {
       throw new Error('Gemini returned no response');
     }
 
-    const imagePart = parts.find((p: any) => p.inlineData?.data);
-    if (!imagePart?.inlineData?.data) {
+    let imageBase64: string | undefined;
+    let thoughts: string | undefined;
+    let textResponse: string | undefined;
+
+    for (const part of parts) {
+      if ((part as any).thought && (part as any).text) {
+        thoughts = (thoughts ? thoughts + '\n' : '') + (part as any).text;
+      } else if ((part as any).inlineData?.data) {
+        imageBase64 = (part as any).inlineData.data;
+      } else if ((part as any).text) {
+        textResponse = (textResponse ? textResponse + '\n' : '') + (part as any).text;
+      }
+    }
+
+    if (!imageBase64) {
       throw new Error('Gemini returned no image data');
     }
 
-    return imagePart.inlineData.data;
+    return { imageBase64, thoughts, textResponse };
+  }
+
+  async editImageGemini(
+    instruction: string,
+    sourceImageBase64: string,
+    sourceMimeType: string,
+    options?: {
+      aspectRatio?: string;
+      imageSize?: string;
+      model?: string;
+      thinkingLevel?: string;
+    }
+  ): Promise<{ imageBase64: string; thoughts?: string; textResponse?: string }> {
+    return this.generateImageGemini(instruction, {
+      ...options,
+      thinkingLevel: options?.thinkingLevel || 'Medium',
+      referenceImages: [{ mimeType: sourceMimeType, data: sourceImageBase64 }],
+    });
+  }
+
+  async fetchImageAsBase64(url: string): Promise<{ data: string; mimeType: string }> {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const mimeType = response.headers.get('content-type') || 'image/png';
+    return { data: buffer.toString('base64'), mimeType };
   }
 
   async generatePromptForPicture(prompt: string) {

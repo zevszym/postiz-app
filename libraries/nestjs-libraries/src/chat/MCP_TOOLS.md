@@ -144,17 +144,55 @@ Usuwa post (nieodwracalne).
 ### 4. Generowanie mediów
 
 #### `generateImageTool`
-Generuje obraz AI na podstawie promptu. Obsługuje DALL-E 3 i Gemini Nano Banana Pro.
+Generuje obraz AI do dowolnego celu — posty, baza wiedzy, materiały referencyjne, analiza. Obsługuje DALL-E 3 i Gemini (3 modele).
 
 **Wejście:**
 - `prompt` - opis obrazu
-- `provider` - (opcjonalny) `"dalle"` lub `"gemini"`. Domyślnie używa env var `IMAGE_GENERATION_PROVIDER` lub `"dalle"`.
-- `platform` - (opcjonalny) platforma docelowa (`instagram`, `facebook`, `x`, `linkedin`, `pinterest`, `tiktok`, `youtube`, `threads`, `bluesky`). Automatycznie dobiera aspect ratio.
-- `aspectRatio` - (opcjonalny) nadpisanie aspect ratio (`1:1`, `2:3`, `3:4`, `4:3`, `4:5`, `9:16`, `16:9`, `21:9`)
+- `provider` - (opcjonalny) `"dalle"` lub `"gemini"`. Auto-Gemini gdy użyto opcji Gemini.
+- `platform` - (opcjonalny) platforma docelowa — auto aspect ratio
+- `aspectRatio` - (opcjonalny) nadpisanie aspect ratio
+- `model` - (opcjonalny) model Gemini:
+  - `gemini-2.5-flash-image` — Nano Banana (szybki/tani)
+  - `gemini-3.1-flash-image-preview` — Nano Banana 2 (balanced, Image Search)
+  - `gemini-3-pro-image-preview` — Nano Banana Pro (najwyższa jakość)
+- `thinkingLevel` - (opcjonalny) `None/Low/Medium/High`. Domyślnie `High`.
+- `useGoogleSearch` - (opcjonalny) Google Search grounding — model szuka prawdziwych produktów/trendów
+- `useImageSearch` - (opcjonalny) Image Search grounding (auto-switch na Nano Banana 2)
+- `referenceImageIds` - (opcjonalny) do 14 ID z media library — spójność wizualna
 
 **Wyjście:**
 - `id` - ID obrazu
 - `path` - URL obrazu
+- `thoughts` - (opcjonalny) proces myślenia modelu
+- `textResponse` - (opcjonalny) tekst towarzyszący
+
+#### `editImageTool`
+Edycja istniejących obrazów instrukcją tekstową. Oryginał zachowany, edycja jako nowy wpis w media library.
+
+**Wejście:**
+- `instruction` - co zmienić ("zmień tło na plażę", "dodaj tekst SALE -30%", "przystosuj na Instagram")
+- `sourceImageId` - ID obrazu z media library
+- `sourceImageUrl` - lub URL obrazu
+- `platform` - (opcjonalny) platforma docelowa
+- `aspectRatio` - (opcjonalny) aspect ratio
+- `model` - (opcjonalny) model Gemini
+- `thinkingLevel` - (opcjonalny) domyślnie `Medium`
+
+**Wyjście:**
+- `id`, `path`, `thoughts?`, `textResponse?`
+
+#### `geminiSearchImageTool`
+Generowanie obrazów prawdziwych produktów/marek z Google Search grounding. Model szuka produktu w Google przed generacją.
+
+**Wejście:**
+- `prompt` - z nazwą produktu/marki ("post na Instagram z ekspresem DeLonghi La Specialista")
+- `platform` - (opcjonalny) platforma docelowa
+- `aspectRatio` - (opcjonalny) aspect ratio
+- `useImageSearch` - (opcjonalny) dodatkowy Image Search (auto Nano Banana 2)
+- `referenceImageIds` - (opcjonalny) reference images z media library
+
+**Wyjście:**
+- `id`, `path`, `thoughts?`, `textResponse?`
 
 **Automatyczne aspect ratio per platforma:**
 | Platforma | Aspect ratio |
@@ -317,6 +355,16 @@ libraries/nestjs-libraries/src/chat/
 - Dodano obsługę multi-channel posting w `schedulePostTool` — nowy opcjonalny parametr `group` pozwala powiązać posty na różne platformy
 - Dodano integrację z Gemini Nano Banana Pro w `generateImageTool` — nowy opcjonalny parametr `provider` + env vars `GEMINI_API_KEY`, `GEMINI_IMAGE_MODEL`, `IMAGE_GENERATION_PROVIDER`
 - Dodano automatyczny aspect ratio per platforma w `generateImageTool` — parametry `platform` i `aspectRatio`, rozdzielczość 1K domyślnie
+- **Major upgrade:** Pełna integracja Gemini Image Generation:
+  - Thinking mode (`thinkingLevel: "High"` domyślnie) dla najlepszej jakości
+  - Google Search grounding — generowanie obrazów prawdziwych produktów/marek
+  - Image Search grounding — wizualne referencje z Google Images (Nano Banana 2)
+  - Reference images — do 14 obrazów referencyjnych dla spójności wizualnej
+  - Wybór modelu: Nano Banana (fast), Nano Banana 2 (balanced), Nano Banana Pro (quality)
+  - Nowy SDK `@google/genai` (zastąpił `@google/generative-ai`)
+- Nowy tool `editImageTool` — edycja obrazów instrukcją tekstową (zmiana tła, tekst, adaptacja)
+- Nowy tool `geminiSearchImageTool` — generowanie obrazów prawdziwych produktów z Google Search
+- Toole obrazowe są uniwersalne — do postów, bazy wiedzy, materiałów referencyjnych
 
 ### 2024-01-11
 - Naprawiono `integrationList` - dodano obsługę błędów i pola `available`, `disabled`, `refreshNeeded`

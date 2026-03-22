@@ -37,7 +37,14 @@ export class MediaService {
     org: Organization,
     generatePromptFirst?: boolean,
     provider?: string,
-    aspectRatio?: string
+    aspectRatio?: string,
+    geminiOptions?: {
+      model?: string;
+      thinkingLevel?: string;
+      useGoogleSearch?: boolean;
+      useImageSearch?: boolean;
+      referenceImageUrls?: string[];
+    }
   ) {
     const generating = await this._subscriptionService.useCredit(
       org,
@@ -50,7 +57,25 @@ export class MediaService {
 
         const useProvider = (provider || process.env.IMAGE_GENERATION_PROVIDER || 'dalle').toLowerCase();
         if (useProvider === 'gemini') {
-          return this._openAi.generateImageGemini(prompt, aspectRatio);
+          // Fetch reference images if provided
+          let referenceImages: Array<{ mimeType: string; data: string }> | undefined;
+          if (geminiOptions?.referenceImageUrls?.length) {
+            referenceImages = await Promise.all(
+              geminiOptions.referenceImageUrls.map((url) =>
+                this._openAi.fetchImageAsBase64(url)
+              )
+            );
+          }
+
+          const result = await this._openAi.generateImageGemini(prompt, {
+            aspectRatio,
+            model: geminiOptions?.model,
+            thinkingLevel: geminiOptions?.thinkingLevel,
+            useGoogleSearch: geminiOptions?.useGoogleSearch,
+            useImageSearch: geminiOptions?.useImageSearch,
+            referenceImages,
+          });
+          return result.imageBase64;
         }
 
         return this._openAi.generateImage(prompt, !!generatePromptFirst);
@@ -58,6 +83,32 @@ export class MediaService {
     );
 
     return generating;
+  }
+
+  async editImage(
+    instruction: string,
+    sourceImageUrl: string,
+    org: Organization,
+    options?: {
+      aspectRatio?: string;
+      model?: string;
+      thinkingLevel?: string;
+    }
+  ) {
+    return this._subscriptionService.useCredit(
+      org,
+      'ai_images',
+      async () => {
+        const sourceImage = await this._openAi.fetchImageAsBase64(sourceImageUrl);
+        const result = await this._openAi.editImageGemini(
+          instruction,
+          sourceImage.data,
+          sourceImage.mimeType,
+          options
+        );
+        return result.imageBase64;
+      }
+    );
   }
 
   saveFile(org: string, fileName: string, filePath: string, originalName?: string) {

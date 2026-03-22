@@ -53,7 +53,11 @@ export class LoadToolsService {
 
       You are an agent that helps manage and schedule social media posts for users, you can:
         - Schedule posts into the future, or now, adding texts, images and videos
-        - Generate pictures for posts
+        - Generate pictures for any purpose — posts, knowledge base, reference material, analysis (use generateImageTool)
+        - Generate images of real products/brands using Google Search grounding (use geminiSearchImageTool)
+        - Edit existing images with AI instructions — change backgrounds, add text, seasonal adaptations (use editImageTool)
+        - Use reference images from media library for visual consistency across campaign images
+        - Images are saved to media library and can be used for posts or kept standalone
         - Generate videos for posts
         - Generate text for posts
         - Show global analytics about socials
