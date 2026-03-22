@@ -10,37 +10,28 @@ export class TemporalRegister implements OnModuleInit {
     if (process.env.TEMPORAL_TLS === 'true') {
       return;
     }
-    try {
-      const connection = this._client?.client?.getRawClient()
-        ?.connection as Connection;
+    const connection = this._client?.client?.getRawClient()
+      ?.connection as Connection;
 
-      if (!connection) {
-        console.warn('Temporal connection not available, skipping search attributes registration');
-        return;
-      }
+    const { customAttributes } =
+      await connection.operatorService.listSearchAttributes({
+        namespace: process.env.TEMPORAL_NAMESPACE || 'default',
+      });
 
-      const { customAttributes } =
-        await connection.operatorService.listSearchAttributes({
-          namespace: process.env.TEMPORAL_NAMESPACE || 'default',
-        });
+    const neededAttribute = ['organizationId', 'postId'];
+    const missingAttributes = neededAttribute.filter(
+      (attr) => !customAttributes[attr]
+    );
 
-      const neededAttribute = ['organizationId', 'postId'];
-      const missingAttributes = neededAttribute.filter(
-        (attr) => !customAttributes[attr]
-      );
-
-      if (missingAttributes.length > 0) {
-        await connection.operatorService.addSearchAttributes({
-          namespace: process.env.TEMPORAL_NAMESPACE || 'default',
-          searchAttributes: missingAttributes.reduce((all, current) => {
-            // @ts-ignore
-            all[current] = 1;
-            return all;
-          }, {}),
-        });
-      }
-    } catch (err) {
-      console.warn('Failed to register Temporal search attributes (Temporal may not be running):', (err as Error).message);
+    if (missingAttributes.length > 0) {
+      await connection.operatorService.addSearchAttributes({
+        namespace: process.env.TEMPORAL_NAMESPACE || 'default',
+        searchAttributes: missingAttributes.reduce((all, current) => {
+          // @ts-ignore
+          all[current] = 1;
+          return all;
+        }, {}),
+      });
     }
   }
 }
