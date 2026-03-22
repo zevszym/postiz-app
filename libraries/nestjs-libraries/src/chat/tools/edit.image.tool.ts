@@ -57,7 +57,10 @@ export class EditImageTool implements AgentToolInterface {
           .optional()
           .describe('Thinking depth for Gemini 3.x models. If not set, uses API default.'),
       }),
-      outputSchema: z.any(),
+      outputSchema: z.object({
+        id: z.string(),
+        path: z.string(),
+      }),
       execute: async (args, options) => {
         const { context, runtimeContext } = args;
         checkAuth(args, options);

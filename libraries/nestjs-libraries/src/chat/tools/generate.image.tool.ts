@@ -63,7 +63,10 @@ export class GenerateImageTool implements AgentToolInterface {
           .optional()
           .describe('Media library IDs of reference images (up to 14). Model uses these for visual consistency — e.g., same product in different settings.'),
       }),
-      outputSchema: z.any(),
+      outputSchema: z.object({
+        id: z.string(),
+        path: z.string(),
+      }),
       execute: async (args, options) => {
         const { context, runtimeContext } = args;
         checkAuth(args, options);
