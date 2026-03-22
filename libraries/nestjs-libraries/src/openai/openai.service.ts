@@ -74,15 +74,22 @@ export class OpenaiService {
       tools = [{ googleSearch: {} }];
     }
 
+    // Only include thinkingConfig for Gemini 3.x models (not 2.5 Nano Banana)
+    const supportsThinking = modelId.startsWith('gemini-3');
+
     const response = await ai.models.generateContent({
       model: modelId,
       contents,
       config: {
         responseModalities: ['TEXT', 'IMAGE'],
-        thinkingConfig: {
-          thinkingLevel: (options?.thinkingLevel as any) || 'High',
-          includeThoughts: true,
-        },
+        ...(supportsThinking
+          ? {
+              thinkingConfig: {
+                thinkingLevel: (options?.thinkingLevel as any) || 'High',
+                includeThoughts: true,
+              },
+            }
+          : {}),
         imageConfig: {
           aspectRatio: options?.aspectRatio || '1:1',
           imageSize: options?.imageSize || process.env.GEMINI_IMAGE_SIZE || '1K',

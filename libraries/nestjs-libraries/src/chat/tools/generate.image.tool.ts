@@ -128,7 +128,7 @@ export class GenerateImageTool implements AgentToolInterface {
           'data:image/png;base64,' + image
         );
 
-        const saved = await this._mediaService.saveFile(org.id, file.split('/').pop(), file);
+        const saved = await this._mediaService.saveFile(org.id, file.split('/').pop() || `generated-${Date.now()}.png`, file);
         return { id: saved.id, path: saved.path };
       },
     });
