@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { shuffle } from 'lodash';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'sk-proj-',
@@ -29,6 +30,38 @@ export class OpenaiService {
     ).data[0];
 
     return isUrl ? generate.url : generate.b64_json;
+  }
+
+  async generateImageGemini(prompt: string): Promise<string> {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY environment variable is not set');
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: process.env.GEMINI_IMAGE_MODEL || 'gemini-3-pro-image-preview',
+    });
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        // @ts-ignore - responseModalities is supported for image generation
+        responseModalities: ['IMAGE', 'TEXT'],
+      },
+    });
+
+    const parts = result.response.candidates?.[0]?.content?.parts;
+    if (!parts) {
+      throw new Error('Gemini returned no response');
+    }
+
+    const imagePart = parts.find((p: any) => p.inlineData?.data);
+    if (!imagePart?.inlineData?.data) {
+      throw new Error('Gemini returned no image data');
+    }
+
+    return imagePart.inlineData.data;
   }
 
   async generatePromptForPicture(prompt: string) {

@@ -144,14 +144,20 @@ Usuwa post (nieodwracalne).
 ### 4. Generowanie mediów
 
 #### `generateImageTool`
-Generuje obraz AI na podstawie promptu.
+Generuje obraz AI na podstawie promptu. Obsługuje DALL-E 3 i Gemini Nano Banana Pro.
 
 **Wejście:**
 - `prompt` - opis obrazu
+- `provider` - (opcjonalny) `"dalle"` lub `"gemini"`. Domyślnie używa env var `IMAGE_GENERATION_PROVIDER` lub `"dalle"`.
 
 **Wyjście:**
 - `id` - ID obrazu
 - `path` - URL obrazu
+
+**Konfiguracja Gemini:**
+- Ustaw `GEMINI_API_KEY` w zmiennych środowiskowych
+- Opcjonalnie `GEMINI_IMAGE_MODEL` (domyślnie: `gemini-3-pro-image-preview` / Nano Banana Pro)
+- Opcjonalnie `IMAGE_GENERATION_PROVIDER=gemini` aby używać globalnie
 
 #### `generateVideoOptions`
 Lista dostępnych szablonów wideo.
@@ -293,6 +299,7 @@ libraries/nestjs-libraries/src/chat/
 
 ### 2026-03-22
 - Dodano obsługę multi-channel posting w `schedulePostTool` — nowy opcjonalny parametr `group` pozwala powiązać posty na różne platformy
+- Dodano integrację z Gemini Nano Banana Pro w `generateImageTool` — nowy opcjonalny parametr `provider` + env vars `GEMINI_API_KEY`, `GEMINI_IMAGE_MODEL`, `IMAGE_GENERATION_PROVIDER`
 
 ### 2024-01-11
 - Naprawiono `integrationList` - dodano obsługę błędów i pola `available`, `disabled`, `refreshNeeded`

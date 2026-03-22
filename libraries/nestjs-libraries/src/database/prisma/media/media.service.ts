@@ -35,7 +35,8 @@ export class MediaService {
   async generateImage(
     prompt: string,
     org: Organization,
-    generatePromptFirst?: boolean
+    generatePromptFirst?: boolean,
+    provider?: string
   ) {
     const generating = await this._subscriptionService.useCredit(
       org,
@@ -45,6 +46,12 @@ export class MediaService {
           prompt = await this._openAi.generatePromptForPicture(prompt);
           console.log('Prompt:', prompt);
         }
+
+        const useProvider = (provider || process.env.IMAGE_GENERATION_PROVIDER || 'dalle').toLowerCase();
+        if (useProvider === 'gemini') {
+          return this._openAi.generateImageGemini(prompt);
+        }
+
         return this._openAi.generateImage(prompt, !!generatePromptFirst);
       }
     );
