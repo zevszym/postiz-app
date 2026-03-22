@@ -32,7 +32,11 @@ export class OpenaiService {
     return isUrl ? generate.url : generate.b64_json;
   }
 
-  async generateImageGemini(prompt: string): Promise<string> {
+  async generateImageGemini(
+    prompt: string,
+    aspectRatio?: string,
+    imageSize?: string
+  ): Promise<string> {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY environment variable is not set');
@@ -46,8 +50,12 @@ export class OpenaiService {
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
-        // @ts-ignore - responseModalities is supported for image generation
+        // @ts-ignore - responseModalities and imageConfig are supported for image generation
         responseModalities: ['IMAGE', 'TEXT'],
+        imageConfig: {
+          aspectRatio: aspectRatio || '1:1',
+          imageSize: imageSize || process.env.GEMINI_IMAGE_SIZE || '1K',
+        },
       },
     });
 

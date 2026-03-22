@@ -149,15 +149,31 @@ Generuje obraz AI na podstawie promptu. Obsługuje DALL-E 3 i Gemini Nano Banana
 **Wejście:**
 - `prompt` - opis obrazu
 - `provider` - (opcjonalny) `"dalle"` lub `"gemini"`. Domyślnie używa env var `IMAGE_GENERATION_PROVIDER` lub `"dalle"`.
+- `platform` - (opcjonalny) platforma docelowa (`instagram`, `facebook`, `x`, `linkedin`, `pinterest`, `tiktok`, `youtube`, `threads`, `bluesky`). Automatycznie dobiera aspect ratio.
+- `aspectRatio` - (opcjonalny) nadpisanie aspect ratio (`1:1`, `2:3`, `3:4`, `4:3`, `4:5`, `9:16`, `16:9`, `21:9`)
 
 **Wyjście:**
 - `id` - ID obrazu
 - `path` - URL obrazu
 
-**Konfiguracja Gemini:**
-- Ustaw `GEMINI_API_KEY` w zmiennych środowiskowych
-- Opcjonalnie `GEMINI_IMAGE_MODEL` (domyślnie: `gemini-3-pro-image-preview` / Nano Banana Pro)
-- Opcjonalnie `IMAGE_GENERATION_PROVIDER=gemini` aby używać globalnie
+**Automatyczne aspect ratio per platforma:**
+| Platforma | Aspect ratio |
+|-----------|-------------|
+| Instagram | 1:1 |
+| Facebook | 1:1 |
+| X/Twitter | 16:9 |
+| LinkedIn | 1:1 |
+| Pinterest | 2:3 |
+| TikTok | 9:16 |
+| YouTube | 16:9 |
+| Threads | 1:1 |
+| Bluesky | 16:9 |
+
+**Konfiguracja Gemini (env vars):**
+- `GEMINI_API_KEY` - klucz API (wymagany)
+- `IMAGE_GENERATION_PROVIDER=gemini` - aby używać Gemini globalnie
+- `GEMINI_IMAGE_MODEL` - model (domyślnie: `gemini-3-pro-image-preview`)
+- `GEMINI_IMAGE_SIZE` - rozdzielczość (domyślnie: `1K`, opcje: `512`, `1K`, `2K`, `4K`)
 
 #### `generateVideoOptions`
 Lista dostępnych szablonów wideo.
@@ -300,6 +316,7 @@ libraries/nestjs-libraries/src/chat/
 ### 2026-03-22
 - Dodano obsługę multi-channel posting w `schedulePostTool` — nowy opcjonalny parametr `group` pozwala powiązać posty na różne platformy
 - Dodano integrację z Gemini Nano Banana Pro w `generateImageTool` — nowy opcjonalny parametr `provider` + env vars `GEMINI_API_KEY`, `GEMINI_IMAGE_MODEL`, `IMAGE_GENERATION_PROVIDER`
+- Dodano automatyczny aspect ratio per platforma w `generateImageTool` — parametry `platform` i `aspectRatio`, rozdzielczość 1K domyślnie
 
 ### 2024-01-11
 - Naprawiono `integrationList` - dodano obsługę błędów i pola `available`, `disabled`, `refreshNeeded`

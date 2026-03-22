@@ -36,7 +36,8 @@ export class MediaService {
     prompt: string,
     org: Organization,
     generatePromptFirst?: boolean,
-    provider?: string
+    provider?: string,
+    aspectRatio?: string
   ) {
     const generating = await this._subscriptionService.useCredit(
       org,
@@ -49,7 +50,7 @@ export class MediaService {
 
         const useProvider = (provider || process.env.IMAGE_GENERATION_PROVIDER || 'dalle').toLowerCase();
         if (useProvider === 'gemini') {
-          return this._openAi.generateImageGemini(prompt);
+          return this._openAi.generateImageGemini(prompt, aspectRatio);
         }
 
         return this._openAi.generateImage(prompt, !!generatePromptFirst);
