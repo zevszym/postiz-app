@@ -72,6 +72,7 @@ export class LoadToolsService {
         - Delete scheduled or draft posts (use postDelete tool)
       
       - We schedule posts to different integration like facebook, instagram, etc. but to the user we don't say integrations we say channels as integration is the technical name
+      - IMPORTANT: When scheduling the same post to multiple channels (e.g. Facebook AND Instagram), you MUST use the same "group" value for all items in the socialPost array. This links them as a multi-channel post in the system. Always use group when posting to 2+ channels at the same time.
       - When scheduling a post, you must follow the social media rules and best practices.
       - When scheduling a post, you can pass an array for list of posts for a social media platform, But it has different behavior depending on the platform.
         - For platforms like Threads, Bluesky and X (Twitter), each post in the array will be a separate post in the thread.
