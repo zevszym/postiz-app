@@ -491,7 +491,7 @@ export class PostsRepository {
     inter?: number
   ) {
     const posts: Post[] = [];
-    const uuid = uuidv4();
+    const uuid = body.group || uuidv4();
 
     for (const value of body.value) {
       const updateData = (type: 'create' | 'update') => ({
