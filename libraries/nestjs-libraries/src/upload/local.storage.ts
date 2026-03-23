@@ -8,10 +8,17 @@ export class LocalStorage implements IUploadProvider {
 
   async uploadSimple(path: string) {
     const loadImage = await fetch(path);
-    const contentType =
+    let contentType =
       loadImage?.headers?.get('content-type') ||
       loadImage?.headers?.get('Content-Type');
-    const findExtension = mime.getExtension(contentType)!;
+
+    // For data URIs, fetch may return wrong content-type — extract from URI itself
+    if ((!contentType || contentType === 'application/octet-stream') && path.startsWith('data:')) {
+      const match = path.match(/^data:([^;,]+)/);
+      if (match) contentType = match[1];
+    }
+
+    const findExtension = mime.getExtension(contentType) || 'png';
 
     const now = new Date();
     const year = now.getFullYear();
