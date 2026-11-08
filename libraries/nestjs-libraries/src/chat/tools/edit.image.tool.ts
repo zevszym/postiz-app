@@ -58,52 +58,57 @@ export class EditImageTool implements AgentToolInterface {
           .describe('Thinking depth for Gemini 3.x models. If not set, uses API default.'),
       }),
       outputSchema: z.object({
-        id: z.string(),
-        path: z.string(),
+        id: z.string().optional(),
+        path: z.string().optional(),
+        error: z.string().optional(),
       }),
       execute: async (args, options) => {
-        const { context, runtimeContext } = args;
-        checkAuth(args, options);
-        // @ts-ignore
-        const org = JSON.parse(runtimeContext.get('organization') as string);
+        try {
+          const { context, runtimeContext } = args;
+          checkAuth(args, options);
+          // @ts-ignore
+          const org = JSON.parse(runtimeContext.get('organization') as string);
 
-        // Resolve source image URL
-        let sourceUrl: string;
-        if (context.sourceImageId) {
-          const media = await this._mediaService.getMediaById(context.sourceImageId);
-          if (!media) {
-            throw new Error(`Media not found: ${context.sourceImageId}`);
+          // Resolve source image URL
+          let sourceUrl: string;
+          if (context.sourceImageId) {
+            const media = await this._mediaService.getMediaById(context.sourceImageId);
+            if (!media) {
+              return { error: `Media not found: ${context.sourceImageId}` };
+            }
+            sourceUrl = media.path;
+          } else if (context.sourceImageUrl) {
+            sourceUrl = context.sourceImageUrl;
+          } else {
+            return { error: 'Either sourceImageId or sourceImageUrl must be provided' };
           }
-          sourceUrl = media.path;
-        } else if (context.sourceImageUrl) {
-          sourceUrl = context.sourceImageUrl;
-        } else {
-          throw new Error('Either sourceImageId or sourceImageUrl must be provided');
-        }
 
-        const aspectRatio = resolveAspectRatio(context.aspectRatio, context.platform);
+          const aspectRatio = resolveAspectRatio(context.aspectRatio, context.platform);
 
-        const image = await this._mediaService.editImage(
-          context.instruction,
-          sourceUrl,
-          org,
-          {
-            aspectRatio,
-            model: context.model,
-            thinkingLevel: context.thinkingLevel,
+          const image = await this._mediaService.editImage(
+            context.instruction,
+            sourceUrl,
+            org,
+            {
+              aspectRatio,
+              model: context.model,
+              thinkingLevel: context.thinkingLevel,
+            }
+          );
+
+          if (!image) {
+            return { error: 'Image editing returned no data' };
           }
-        );
 
-        if (!image) {
-          throw new Error('Image editing returned no data');
+          const file = await this.storage.uploadSimple(
+            'data:image/png;base64,' + image
+          );
+
+          const saved = await this._mediaService.saveFile(org.id, file.split('/').pop() || `edited-${Date.now()}.png`, file);
+          return { id: saved.id, path: saved.path };
+        } catch (err: any) {
+          return { error: err.message || 'Unknown error during image editing' };
         }
-
-        const file = await this.storage.uploadSimple(
-          'data:image/png;base64,' + image
-        );
-
-        const saved = await this._mediaService.saveFile(org.id, file.split('/').pop() || `edited-${Date.now()}.png`, file);
-        return { id: saved.id, path: saved.path };
       },
     });
   }

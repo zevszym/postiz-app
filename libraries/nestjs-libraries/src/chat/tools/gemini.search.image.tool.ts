@@ -47,60 +47,65 @@ export class GeminiSearchImageTool implements AgentToolInterface {
           .describe('Additional reference images from media library for style/product consistency'),
       }),
       outputSchema: z.object({
-        id: z.string(),
-        path: z.string(),
+        id: z.string().optional(),
+        path: z.string().optional(),
+        error: z.string().optional(),
       }),
       execute: async (args, options) => {
-        const { context, runtimeContext } = args;
-        checkAuth(args, options);
-        // @ts-ignore
-        const org = JSON.parse(runtimeContext.get('organization') as string);
+        try {
+          const { context, runtimeContext } = args;
+          checkAuth(args, options);
+          // @ts-ignore
+          const org = JSON.parse(runtimeContext.get('organization') as string);
 
-        const aspectRatio = resolveAspectRatio(context.aspectRatio, context.platform);
+          const aspectRatio = resolveAspectRatio(context.aspectRatio, context.platform);
 
-        // Use Image Search model when requested, otherwise Pro for best quality
-        const model = context.useImageSearch
-          ? 'gemini-3.1-flash-image-preview'
-          : 'gemini-3-pro-image-preview';
+          // Use Image Search model when requested, otherwise Pro for best quality
+          const model = context.useImageSearch
+            ? 'gemini-3.1-flash-image-preview'
+            : 'gemini-3-pro-image-preview';
 
-        // Resolve reference image URLs
-        let referenceImageUrls: string[] | undefined;
-        if (context.referenceImageIds?.length) {
-          const mediaRecords = await Promise.all(
-            context.referenceImageIds.map((id: string) =>
-              this._mediaService.getMediaById(id)
-            )
-          );
-          referenceImageUrls = mediaRecords
-            .filter(Boolean)
-            .map((m: any) => m.path);
-        }
-
-        const image = await this._mediaService.generateImage(
-          context.prompt,
-          org,
-          false,
-          'gemini',
-          aspectRatio,
-          {
-            model,
-            thinkingLevel: 'High',
-            useGoogleSearch: true,
-            useImageSearch: context.useImageSearch || false,
-            referenceImageUrls,
+          // Resolve reference image URLs
+          let referenceImageUrls: string[] | undefined;
+          if (context.referenceImageIds?.length) {
+            const mediaRecords = await Promise.all(
+              context.referenceImageIds.map((id: string) =>
+                this._mediaService.getMediaById(id)
+              )
+            );
+            referenceImageUrls = mediaRecords
+              .filter(Boolean)
+              .map((m: any) => m.path);
           }
-        );
 
-        if (!image) {
-          throw new Error('Image generation returned no data');
+          const image = await this._mediaService.generateImage(
+            context.prompt,
+            org,
+            false,
+            'gemini',
+            aspectRatio,
+            {
+              model,
+              thinkingLevel: 'High',
+              useGoogleSearch: true,
+              useImageSearch: context.useImageSearch || false,
+              referenceImageUrls,
+            }
+          );
+
+          if (!image) {
+            return { error: 'Image generation returned no data' };
+          }
+
+          const file = await this.storage.uploadSimple(
+            'data:image/png;base64,' + image
+          );
+
+          const saved = await this._mediaService.saveFile(org.id, file.split('/').pop() || `search-${Date.now()}.png`, file);
+          return { id: saved.id, path: saved.path };
+        } catch (err: any) {
+          return { error: err.message || 'Unknown error during search image generation' };
         }
-
-        const file = await this.storage.uploadSimple(
-          'data:image/png;base64,' + image
-        );
-
-        const saved = await this._mediaService.saveFile(org.id, file.split('/').pop() || `search-${Date.now()}.png`, file);
-        return { id: saved.id, path: saved.path };
       },
     });
   }

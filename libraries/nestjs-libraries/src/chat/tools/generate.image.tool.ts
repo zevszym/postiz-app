@@ -37,14 +37,6 @@ export class GenerateImageTool implements AgentToolInterface {
           .enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'])
           .optional()
           .describe('Override aspect ratio. If not set, derived from platform. Defaults to 1:1.'),
-        model: z
-          .enum([
-            'gemini-2.5-flash-image',
-            'gemini-3.1-flash-image-preview',
-            'gemini-3-pro-image-preview',
-          ])
-          .optional()
-          .describe('Gemini model. "gemini-2.5-flash-image" = Nano Banana (fast/cheap), "gemini-3.1-flash-image-preview" = Nano Banana 2 (balanced, supports image search), "gemini-3-pro-image-preview" = Nano Banana Pro (highest quality). Default from env or Pro.'),
         thinkingLevel: z
           .enum(['Minimal', 'High'])
           .optional()
@@ -64,70 +56,68 @@ export class GenerateImageTool implements AgentToolInterface {
           .describe('Media library IDs of reference images (up to 14). Model uses these for visual consistency — e.g., same product in different settings.'),
       }),
       outputSchema: z.object({
-        id: z.string(),
-        path: z.string(),
+        id: z.string().optional(),
+        path: z.string().optional(),
+        error: z.string().optional(),
       }),
       execute: async (args, options) => {
-        const { context, runtimeContext } = args;
-        checkAuth(args, options);
-        // @ts-ignore
-        const org = JSON.parse(runtimeContext.get('organization') as string);
+        try {
+          const { context, runtimeContext } = args;
+          checkAuth(args, options);
+          // @ts-ignore
+          const org = JSON.parse(runtimeContext.get('organization') as string);
 
-        const aspectRatio = resolveAspectRatio(context.aspectRatio, context.platform);
+          const aspectRatio = resolveAspectRatio(context.aspectRatio, context.platform);
 
-        // Auto-force gemini provider when Gemini-specific options are used
-        const hasGeminiOptions = context.model || context.thinkingLevel ||
-          context.useGoogleSearch || context.useImageSearch || context.referenceImageIds?.length;
-        const provider = hasGeminiOptions ? 'gemini' : context.provider;
+          // Auto-force gemini provider when Gemini-specific options are used
+          const hasGeminiOptions = context.thinkingLevel ||
+            context.useGoogleSearch || context.useImageSearch || context.referenceImageIds?.length;
+          const provider = hasGeminiOptions ? 'gemini' : context.provider;
 
-        // Auto-switch model for image search
-        let model = context.model;
-        if (context.useImageSearch && model !== 'gemini-3.1-flash-image-preview') {
-          model = 'gemini-3.1-flash-image-preview';
-        }
+          // Resolve reference image URLs from media library IDs
+          let referenceImageUrls: string[] | undefined;
+          if (context.referenceImageIds?.length) {
+            const mediaRecords = await Promise.all(
+              context.referenceImageIds.map((id: string) =>
+                this._mediaService.getMediaById(id)
+              )
+            );
+            referenceImageUrls = mediaRecords
+              .filter(Boolean)
+              .map((m: any) => m.path);
+          }
 
-        // Resolve reference image URLs from media library IDs
-        let referenceImageUrls: string[] | undefined;
-        if (context.referenceImageIds?.length) {
-          const mediaRecords = await Promise.all(
-            context.referenceImageIds.map((id: string) =>
-              this._mediaService.getMediaById(id)
-            )
+          const useGemini = provider === 'gemini' || (provider || process.env.IMAGE_GENERATION_PROVIDER || 'dalle').toLowerCase() === 'gemini';
+
+          const image = await this._mediaService.generateImage(
+            context.prompt,
+            org,
+            false,
+            provider,
+            aspectRatio,
+            useGemini
+              ? {
+                  thinkingLevel: context.thinkingLevel,
+                  useGoogleSearch: context.useGoogleSearch,
+                  useImageSearch: context.useImageSearch,
+                  referenceImageUrls,
+                }
+              : undefined
           );
-          referenceImageUrls = mediaRecords
-            .filter(Boolean)
-            .map((m: any) => m.path);
+
+          if (!image) {
+            return { error: 'Image generation returned no data' };
+          }
+
+          const file = await this.storage.uploadSimple(
+            'data:image/png;base64,' + image
+          );
+
+          const saved = await this._mediaService.saveFile(org.id, file.split('/').pop() || `generated-${Date.now()}.png`, file);
+          return { id: saved.id, path: saved.path };
+        } catch (err: any) {
+          return { error: err.message || 'Unknown error during image generation' };
         }
-
-        const useGemini = provider === 'gemini' || (provider || process.env.IMAGE_GENERATION_PROVIDER || 'dalle').toLowerCase() === 'gemini';
-
-        const image = await this._mediaService.generateImage(
-          context.prompt,
-          org,
-          false,
-          provider,
-          aspectRatio,
-          useGemini
-            ? {
-                model,
-                thinkingLevel: context.thinkingLevel,
-                useGoogleSearch: context.useGoogleSearch,
-                useImageSearch: context.useImageSearch,
-                referenceImageUrls,
-              }
-            : undefined
-        );
-
-        if (!image) {
-          throw new Error('Image generation returned no data');
-        }
-
-        const file = await this.storage.uploadSimple(
-          'data:image/png;base64,' + image
-        );
-
-        const saved = await this._mediaService.saveFile(org.id, file.split('/').pop() || `generated-${Date.now()}.png`, file);
-        return { id: saved.id, path: saved.path };
       },
     });
   }

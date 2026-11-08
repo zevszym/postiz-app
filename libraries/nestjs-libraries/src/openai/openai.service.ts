@@ -52,8 +52,53 @@ export class OpenaiService {
     const ai = new GoogleGenAI({ apiKey });
     const modelId = options?.model || process.env.GEMINI_IMAGE_MODEL || 'gemini-3-pro-image-preview';
 
-    // Build contents: text prompt + optional reference images
-    const contents: any[] = [prompt];
+    const needsSearch = options?.useGoogleSearch || options?.useImageSearch;
+
+    // Two-step approach: search grounding can't produce images,
+    // so we first gather search context (TEXT only), then generate the image.
+    let searchContext: string | undefined;
+    if (needsSearch) {
+      let searchTools: any[];
+      if (options?.useImageSearch) {
+        searchTools = [{
+          googleSearch: {
+            searchTypes: { webSearch: {}, imageSearch: {} },
+          },
+        }];
+      } else {
+        searchTools = [{ googleSearch: {} }];
+      }
+
+      // Use a text-only model for the search step (flash is fast & cheap)
+      const searchModelId = 'gemini-2.5-flash';
+      const searchResponse = await ai.models.generateContent({
+        model: searchModelId,
+        contents: [
+          `Search for visual reference and detailed product information about: ${prompt}. ` +
+          `Describe the product's visual appearance in detail — colors, materials, shapes, textures, branding elements, packaging design. ` +
+          `Be very specific so an image generator can recreate it accurately.`
+        ],
+        config: {
+          responseModalities: ['TEXT'],
+          tools: searchTools,
+        },
+      });
+
+      const searchParts = searchResponse.candidates?.[0]?.content?.parts;
+      if (searchParts?.length) {
+        searchContext = searchParts
+          .filter((p: any) => p.text && !(p as any).thought)
+          .map((p: any) => p.text)
+          .join('\n');
+      }
+    }
+
+    // Build contents: enriched prompt + optional reference images
+    const enrichedPrompt = searchContext
+      ? `${prompt}\n\nVisual reference from search:\n${searchContext}`
+      : prompt;
+
+    const contents: any[] = [enrichedPrompt];
     if (options?.referenceImages?.length) {
       for (const ref of options.referenceImages) {
         contents.push({
@@ -62,24 +107,13 @@ export class OpenaiService {
       }
     }
 
-    // Build tools config for search grounding
-    let tools: any[] | undefined;
-    if (options?.useImageSearch) {
-      tools = [{
-        googleSearch: {
-          searchTypes: { webSearch: {}, imageSearch: {} },
-        },
-      }];
-    } else if (options?.useGoogleSearch) {
-      tools = [{ googleSearch: {} }];
-    }
-
     // Only include thinkingConfig when explicitly requested — let API use defaults otherwise
     const thinkingConfig =
       options?.thinkingLevel && modelId.startsWith('gemini-3')
         ? { thinkingConfig: { thinkingLevel: options.thinkingLevel as any } }
         : {};
 
+    // Image generation step — NO search tools (they prevent image output)
     const response = await ai.models.generateContent({
       model: modelId,
       contents,
@@ -90,7 +124,6 @@ export class OpenaiService {
           aspectRatio: options?.aspectRatio || '1:1',
           imageSize: options?.imageSize || process.env.GEMINI_IMAGE_SIZE || '1K',
         },
-        ...(tools ? { tools } : {}),
       },
     });
 
