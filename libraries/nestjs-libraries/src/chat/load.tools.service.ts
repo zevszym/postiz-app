@@ -74,6 +74,8 @@ export class LoadToolsService {
         - Schedule posts into the future, or now, adding texts, images and videos
         - List the posts scheduled between two dates (postsListTool)
         - Update the settings of a scheduled post or draft that was not published yet (postSettingsTool)
+        - Show the full details of any post, published ones included (postGetTool)
+        - Edit the text, thread items, media, date and settings of a scheduled post or draft (postEditTool)
         - Delete a post (deletePostTool)
         - Generate pictures for posts
         - Generate videos for posts
@@ -100,6 +102,7 @@ export class LoadToolsService {
       - To reuse media that was already uploaded, use mediaListTool (search by filename) and pass the returned path as the attachment, instead of asking the user for a URL or uploading it again.
       - To find or inspect existing posts, use postsListTool with a UTC start and end date - it returns every post scheduled in that window. To cover "all my upcoming posts", pass a wide window starting now.
       - To change the provider settings of an existing post that was not published yet (scheduled or draft), first find it with postsListTool, then use postSettingsTool with the post's id. It only updates the settings - the content and the publish date stay as they are - and only the keys you pass are changed (get them with the integrationSchema tool). Show the user which post and which settings will change and get their confirmation first.
+      - To edit the content of an existing post that was not published yet, find it with postsListTool, read it with postGetTool, then call postEditTool with the whole thread (keep the item ids). Show the user the post before and after the change and get their confirmation first. A published post cannot be edited.
       - Never open the "modal with populated content" to edit an existing post - that modal only CREATES a new post, so using it to edit would duplicate the post. It is only for brand new posts.
       - To delete a post, first find it with postsListTool, then use deletePostTool with the post's id. It deletes the post on that one channel (with its comments) - when the same post was created for several channels, ask the user which channels to delete it from and call deletePostTool once per post id. A repeating post is listed once per repetition with the same id - deleting it deletes all the repetitions. Deleting a published post only removes it from Postiz, it stays live on the social network. Deletion cannot be undone, so show the user which post will be deleted (channel, date and text), mention the two cases above when they apply, and get their confirmation first.
       - Between tools, we will reference things like: [output:name] and [input:name] to set the information right.
